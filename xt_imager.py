@@ -38,6 +38,14 @@ def main():
         const="AUTO",
         help="Use external TFTP server or start our own")
 
+    parser.add_argument(
+        '--serverip',
+        help='IP of the host that will be used TFTP transfer.')
+
+    parser.add_argument(
+        '--ipaddr',
+        help='IP of the board that will be used TFTP transfer.')
+
     args = parser.parse_args()
 
     tftp_root = os.getcwd()
@@ -109,6 +117,14 @@ def do_flash_image(args, tftp_root):
     bytes_sent = 0
     block_start = base_addr // mmc_block_size
     out_fullname = os.path.join(tftp_root, chunk_filename)
+
+    if args.serverip:
+        conn_send(conn, f"env set serverip {args.serverip}\r")
+        conn_wait_for_any(conn, [uboot_prompt])
+
+    if args.ipaddr:
+        conn_send(conn, f"env set ipaddr {args.ipaddr}\r")
+        conn_wait_for_any(conn, [uboot_prompt])
 
     # switch to the required MMC device/partition
     conn_send(conn, f"mmc dev {mmc_device} {mmc_part}\r")
