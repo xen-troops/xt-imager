@@ -10,6 +10,7 @@ from typing import List
 from string import printable
 import tftpy
 import threading
+import lzma
 
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 log = logging.getLogger(__name__)
@@ -113,7 +114,12 @@ def do_flash_image(args, tftp_root):
     chunk_filename = "chunk.bin"
     chunk_size_in_bytes = 20*1024*1024
 
-    f_img = open(args.image, "rb")
+    if str(args.image).endswith(".xz"):
+        f_img = lzma.open(args.image)
+        image_size = 0
+    else:
+        f_img = open(args.image, "rb")
+
     bytes_sent = 0
     block_start = base_addr // mmc_block_size
     out_fullname = os.path.join(tftp_root, chunk_filename)
@@ -135,22 +141,24 @@ def do_flash_image(args, tftp_root):
         # - read X MB chunk from image file
         # - save chunk to file in tftp root
         # - tell u-boot to 'tftp-and-emmc' chunk
-        while bytes_sent < image_size:
-            # create chunk
+        while True:
             data = f_img.read(chunk_size_in_bytes)
+
+            if not data:
+                break
+
+            # create chunk
             f_out = open(out_fullname, "wb")
             f_out.write(data)
             f_out.close()
-
-            chunk_size_in_blocks = len(data) // mmc_block_size
-            if len(data) % mmc_block_size:
-                chunk_size_in_blocks += 1
-
-            # instruct u-boot to tftp-and-emmc file
             conn_send(conn, f"tftp 0x48000000 {chunk_filename}\r")
             # check that all bytes are transmitted
             conn_wait_for_any(conn, [f"Bytes transferred = {len(data)}"])
             conn_wait_for_any(conn, [uboot_prompt])
+
+            chunk_size_in_blocks = len(data) // mmc_block_size
+            if len(data) % mmc_block_size:
+                chunk_size_in_blocks += 1
 
             conn_send(conn, f"mmc write 0x48000000 0x{block_start:X} 0x{chunk_size_in_blocks:X}\r")
             # check that all blocks are written properly
@@ -160,7 +168,10 @@ def do_flash_image(args, tftp_root):
             bytes_sent += len(data)
             block_start += chunk_size_in_blocks
 
-            print(f"\nProgress: {bytes_sent:_}/{image_size:_} ({bytes_sent * 100 // image_size}%)")
+            if image_size:
+                print(f"\nProgress: {bytes_sent:_}/{image_size:_} ({bytes_sent * 100 // image_size}%)")
+            else:
+                print(f"\nProgress: {bytes_sent:_}")
             print("===============================")
     finally:
         # remove chunk from tftp root

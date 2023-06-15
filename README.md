@@ -46,7 +46,8 @@ own settings from environment. If provided, then script will execute
 ```
 image
 ```
-Path to the image file. This file will be split into chunks (`chunk.bin`),
+Path to the image file. Raw (.img) or .xz-packed files are acceptable.
+This file will be split into chunks (`chunk.bin`),
 that can be transmitted to the board by TFTP and flashed into eMMC
 device 1 partition 0, starting from address 0.
 
