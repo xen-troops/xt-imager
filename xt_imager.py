@@ -149,11 +149,17 @@ def do_flash_image(args, tftp_root):
 
             # create chunk
             f_out = open(out_fullname, "wb")
-            f_out.write(data)
+            data_packed = lzma.compress(data, format=lzma.FORMAT_ALONE, preset = 1)
+            f_out.write(data_packed)
             f_out.close()
-            conn_send(conn, f"tftp 0x48000000 {chunk_filename}\r")
+            conn_send(conn, f"tftp 0x58000000 {chunk_filename}\r")
             # check that all bytes are transmitted
-            conn_wait_for_any(conn, [f"Bytes transferred = {len(data)}"])
+            conn_wait_for_any(conn, [f"Bytes transferred = {len(data_packed)}"])
+            conn_wait_for_any(conn, [uboot_prompt])
+            # unpack on u-boot side
+            conn_send(conn, "lzmadec 0x58000000 0x48000000\r")
+            # check that all bytes are uncompressed
+            conn_wait_for_any(conn, [f"Uncompressed size: {len(data)}"])
             conn_wait_for_any(conn, [uboot_prompt])
 
             chunk_size_in_blocks = len(data) // mmc_block_size
