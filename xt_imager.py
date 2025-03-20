@@ -56,6 +56,12 @@ def main():
         '--ipaddr',
         help='IP of the board that will be used TFTP transfer.')
 
+    parser.add_argument(
+        '-v',
+        '--verbose',
+        action="store_true",
+        help='Print the output from the serial console')
+
     args = parser.parse_args()
 
     tftp_root = os.getcwd()
@@ -106,10 +112,10 @@ def do_flash_image(args, tftp_root):
     # - u-boot is just starting, so we will get "Hit any key.."
     log.info('Waiting for u-boot prompt...')
     conn_send(conn, "\r")
-    conn_wait_for_any(conn, [uboot_prompt, "Hit any key to stop autoboot:"])
+    conn_wait_for_any(conn, [uboot_prompt, "Hit any key to stop autoboot:"], args.verbose)
     # In case we got "Hit any key", let's stop the boot
     conn_send(conn, "\r")
-    conn_wait_for_any(conn, [uboot_prompt])
+    conn_wait_for_any(conn, [uboot_prompt], args.verbose)
 
     image_size = os.path.getsize(args.image)
 
@@ -135,15 +141,15 @@ def do_flash_image(args, tftp_root):
 
     if args.serverip:
         conn_send(conn, f"env set serverip {args.serverip}\r")
-        conn_wait_for_any(conn, [uboot_prompt])
+        conn_wait_for_any(conn, [uboot_prompt], args.verbose)
 
     if args.ipaddr:
         conn_send(conn, f"env set ipaddr {args.ipaddr}\r")
-        conn_wait_for_any(conn, [uboot_prompt])
+        conn_wait_for_any(conn, [uboot_prompt], args.verbose)
 
     # switch to the required MMC device/partition
     conn_send(conn, f"mmc dev {mmc_device} {mmc_part}\r")
-    conn_wait_for_any(conn, [uboot_prompt])
+    conn_wait_for_any(conn, [uboot_prompt], args.verbose)
 
     try:
         # do in loop:
@@ -163,13 +169,13 @@ def do_flash_image(args, tftp_root):
             f_out.close()
             conn_send(conn, f"tftp 0x58000000 {chunk_filename}\r")
             # check that all bytes are transmitted
-            conn_wait_for_any(conn, [f"Bytes transferred = {len(data_packed)}"])
-            conn_wait_for_any(conn, [uboot_prompt])
+            conn_wait_for_any(conn, [f"Bytes transferred = {len(data_packed)}"], args.verbose)
+            conn_wait_for_any(conn, [uboot_prompt], args.verbose)
             # unpack on u-boot side
             conn_send(conn, "lzmadec 0x58000000 0x48000000\r")
             # check that all bytes are uncompressed
-            conn_wait_for_any(conn, [f"Uncompressed size: {len(data)}"])
-            conn_wait_for_any(conn, [uboot_prompt])
+            conn_wait_for_any(conn, [f"Uncompressed size: {len(data)}"], args.verbose)
+            conn_wait_for_any(conn, [uboot_prompt], args.verbose)
 
             chunk_size_in_blocks = len(data) // mmc_block_size
             if len(data) % mmc_block_size:
@@ -177,17 +183,25 @@ def do_flash_image(args, tftp_root):
 
             conn_send(conn, f"mmc write 0x48000000 0x{block_start:X} 0x{chunk_size_in_blocks:X}\r")
             # check that all blocks are written properly
-            conn_wait_for_any(conn, [f"{chunk_size_in_blocks} blocks written: OK"])
-            conn_wait_for_any(conn, [uboot_prompt])
+            conn_wait_for_any(conn, [f"{chunk_size_in_blocks} blocks written: OK"], args.verbose)
+            conn_wait_for_any(conn, [uboot_prompt], args.verbose)
 
             bytes_sent += len(data)
             block_start += chunk_size_in_blocks
 
-            if image_size:
-                print(f"\nProgress: {bytes_sent:_}/{image_size:_} ({bytes_sent * 100 // image_size}%)")
+            if args.verbose:
+                # in the verbose mode we need to print progress on the new line
+                # and move to the next line
+                print('')
+                end_of_string = '\n'
             else:
-                print(f"\nProgress: {bytes_sent:_}")
-            print("===============================")
+                # in the regular mode we print progress in one line
+                end_of_string = '\r'
+
+            if image_size:
+                print(f"Progress: {bytes_sent:_}/{image_size:_} ({bytes_sent * 100 // image_size}%)", end=end_of_string)
+            else:
+                print(f"Progress: {bytes_sent:_}", end=end_of_string)
     finally:
         # remove chunk from tftp root
         os.remove(out_fullname)
@@ -195,6 +209,9 @@ def do_flash_image(args, tftp_root):
     f_img.close()
     conn.close()
 
+    if not args.verbose:
+        # move to the next line, below the progress
+        print('')
     log.info("Image was flashed successfully.")
 
 
@@ -206,7 +223,7 @@ def open_connection(args):
     return serial.Serial(port=dev_name, baudrate=baud, timeout=20)
 
 
-def conn_wait_for_any(conn, expect: List[str]):
+def conn_wait_for_any(conn, expect: List[str], verbose: bool):
     rcv_str = ""
     # stay in the read loop until any of expected string is received
     # in other words - all expected substrings are not in received buffer
@@ -215,7 +232,7 @@ def conn_wait_for_any(conn, expect: List[str]):
         if not data:
             raise TimeoutError(f"Timeout waiting for `{expect}` from the device")
         rcv_char = chr(data[0])
-        if rcv_char in printable or rcv_char == '\b':
+        if verbose and (rcv_char in printable or rcv_char == '\b'):
             print(rcv_char, end='', flush=True)
         rcv_str += rcv_char
 
