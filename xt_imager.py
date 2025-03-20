@@ -34,6 +34,12 @@ def main():
         help='Serial console to use')
 
     parser.add_argument(
+        '-b',
+        '--baud',
+        default=921600,
+        help='Baudrate')
+
+    parser.add_argument(
         '-t',
         '--tftp',
         nargs='?',
@@ -194,7 +200,7 @@ def do_flash_image(args, tftp_root):
 
 def open_connection(args):
     dev_name = args.serial
-    baud = 115200
+    baud = args.baud
 
     log.info(f"Using serial port {dev_name} with baudrate {baud}")
     return serial.Serial(port=dev_name, baudrate=baud, timeout=20)

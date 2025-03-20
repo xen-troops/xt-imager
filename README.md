@@ -6,7 +6,7 @@ Based on https://github.com/xen-troops/rcar_flash.
 
 ### Usage:
 ```
-[sudo] xt_imager.py [-h] [-s SERIAL] [-t [TFTP]] [--serverip SERVERIP] [--ipaddr IPADDR] image
+[sudo] xt_imager.py [-h] [-s SERIAL] [-b BAUD] [-t [TFTP]] [--serverip SERVERIP] [--ipaddr IPADDR] image
 ```
 
 ### Command line options:
@@ -17,6 +17,12 @@ Based on https://github.com/xen-troops/rcar_flash.
 ```
 Serial device to be used for communications with the u-boot.
 `/dev/ttyUSB0` is used if not provided.
+
+```
+-b
+--baud
+```
+The baud rate to be used on the serial console. Default value is 921600.
 
 ```
 -t
