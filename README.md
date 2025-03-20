@@ -6,7 +6,7 @@ Based on https://github.com/xen-troops/rcar_flash.
 
 ### Usage:
 ```
-[sudo] xt_imager.py [-h] [-s SERIAL] [-b BAUD] [-t [TFTP]] [--serverip SERVERIP] [--ipaddr IPADDR] image
+[sudo] xt_imager.py [-h] [-s SERIAL] [-b BAUD] [-t [TFTP]] [--serverip SERVERIP] [--ipaddr IPADDR] [-v] image
 ```
 
 ### Command line options:
@@ -48,6 +48,13 @@ own settings from environment. If provided, then script will execute
 IP address of the board. If not provided, then u-boot will use it's
 own settings from environment. If provided, then script will execute
 `set ipaddr {IPADDR}` before start of TFTP operations.
+
+```
+-v
+--verbose
+```
+Print the output from the serial console. Pay attention, that this
+option results in thousands of the lines of the text.
 
 ```
 image
