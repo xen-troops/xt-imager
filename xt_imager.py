@@ -18,7 +18,9 @@ log = logging.getLogger(__name__)
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Flash image files through u-boot and tftp')
+        description='Flash image files through u-boot and tftp',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
 
     parser.add_argument(
         'image',
@@ -28,6 +30,7 @@ def main():
     parser.add_argument(
         '-s',
         '--serial',
+        default='/dev/ttyUSB0',
         help='Serial console to use')
 
     parser.add_argument(
@@ -190,10 +193,7 @@ def do_flash_image(args, tftp_root):
 
 
 def open_connection(args):
-    # Default value
-    dev_name = '/dev/ttyUSB0'
-    if args.serial:
-        dev_name = args.serial
+    dev_name = args.serial
     baud = 115200
 
     log.info(f"Using serial port {dev_name} with baudrate {baud}")
