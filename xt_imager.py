@@ -8,7 +8,6 @@ import argparse
 import traceback
 from typing import List
 from string import printable
-import tftpy
 import threading
 import lzma
 
@@ -90,7 +89,12 @@ def main():
 
 class PYTFTPServer(object):
     def __init__(self, folder):
-        self.tftp_server = tftpy.TftpServer(folder)
+        try:
+            import tftpy
+            self.tftp_server = tftpy.TftpServer(folder)
+        except ImportError:
+            print("Can't find tftpy Python module. Please install it.")
+            exit(1)
 
     def start_tftp_server(self):
         # listen to all interfaces and port 69
